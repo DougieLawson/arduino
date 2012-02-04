@@ -1,10 +1,15 @@
 This is a collection of a few of the Arduino projects I thought it was worth sharing.
 
 1. DCF77
-   My version of J.M. Lietaer code for decoding a pollin DCF77 receiver.
+   My version of J.M. Lietaer's code for decoding a pollin DCF77 receiver.
 
 2. bcd 
    An experiment with binary coded decimal
 
 3. one to 19
    An example of driving a +/-1 and 7 segment display without a multiplexer chip.
+
+All code is GPL v3 unless otherwise stated.
+
+(C) Copyright 2012 Dougie Lawson, all rights reserver
+Some code (C) Copyright 2010 J.M. Lietaer.
