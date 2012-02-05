@@ -1,18 +1,22 @@
 /*
 Author : J.M. Lietaer, Belgium, Europe - jmlietaer (at) gmail (dot) com
-Date written : February 22, 2010
-Program : Proof of concept - DCF77 - Read data from a DCF77 module and display date/time
-System : Arduino Duemilanove ATMEGA328
-Software : Arduino IDE 0018 on Apple Mac OS X 10.6.2
-Tested with : Pollin DCF1 - article number 810054
-Information : Please feel free to comment and suggest improvements
-Released under : Creative Commons Attribution - Share Alike 2.0 Belgium License
-
-Amended: 04/02/2012 Dougie Lawson
-Added a one second timer.
-Changed the format of the output.
-Cleaned up the day of the week (didn't like that case/select).
-*/
+ Date written : February 22, 2010
+ Program : Proof of concept - DCF77 - Read data from a DCF77 module and display date/time
+ System : Arduino Duemilanove ATMEGA328
+ Software : Arduino IDE 0018 on Apple Mac OS X 10.6.2
+ Tested with : Pollin DCF1 - article number 810054
+ Information : Please feel free to comment and suggest improvements
+ Released under : Creative Commons Attribution - Share Alike 2.0 Belgium License
+ 
+ Amended: 04/02/2012 Dougie Lawson
+ Added a one second timer.
+ Changed the format of the output.
+ Cleaned up the day of the week (didn't like that case/select).
+ 
+ Amended: 05/02/2012 Dougie Lawson
+ Removed the IF statement for the timezone.
+ Timezone is now done by indexing an array.
+ */
 
 
 #include <MsTimer2.h>
@@ -26,10 +30,14 @@ int DCF77tick = 0;
 int DCF77signal[60]; 
 int DCF77count = 0; 
 int DCF77dw = 0;
+int DCF77tz = 0;
 
 char* DofW[] = { 
   "-Unk-", " Mon ", " Tue ", " Wed ", " Thu ", " Fri ", " Sat ", " Sun "};
-  
+
+char* tzone[] = {
+  "     ", " CEST", " CET "};  
+
 int day = 0;
 int month = 0;
 int yy2 = 0;
@@ -69,9 +77,10 @@ void loop() {
         yy2 = (DCF77signal[50] * 1 + DCF77signal[51] * 2 + DCF77signal[52] * 4 + DCF77signal[53] * 8 + DCF77signal[54] * 10 + DCF77signal[55] * 20 + DCF77signal[56] * 40 + DCF77signal[57] * 80);
         hh = (DCF77signal[29] * 1 + DCF77signal[30] * 2 + DCF77signal[31] * 4 + DCF77signal[32] * 8 + DCF77signal[33] * 10 + DCF77signal[34] * 20);
         mm = (DCF77signal[21] * 1 + DCF77signal[22] * 2 + DCF77signal[23] * 4 + DCF77signal[24] * 8 + DCF77signal[25] * 10 + DCF77signal[26] * 20 + DCF77signal[27] * 40);
-        ss = 0;
-        DCF77count = 0;
+        DCF77tz = (DCF77signal[17] * 1 + DCF77signal[18] * 2);
 
+        ss = 0;            // reset seconds
+        DCF77count = 0;    // reset bit array counter
         MsTimer2::start(); // start the seconds timer.
 
         displayTime();
@@ -82,7 +91,7 @@ void loop() {
         if (DCF77start - DCF77tick > 850) {
           DCF77signal[DCF77count] = 0;
           digitalWrite(13,LOW);
-          
+
         }
         else {
 
@@ -91,7 +100,7 @@ void loop() {
             if (DCF77start - DCF77tick > 650) {
               DCF77signal[DCF77count] = 1;
               digitalWrite(13,HIGH);
-              
+
             }
 
           }
@@ -120,11 +129,11 @@ void loop() {
 void displayTime() {
 
   Serial.print("DCF77:\t");
-  
+
   // Day of the week
   Serial.print(DofW[DCF77dw]);
   Serial.print("\t");
-  
+
   // dd/mm/20yy
   if (day < 10) Serial.print("0");
   Serial.print(day);
@@ -135,7 +144,7 @@ void displayTime() {
   if (yy2 < 10) Serial.print("0"); // will never get run ...
   Serial.print(yy2);
   Serial.print("\t");
-  
+
   // hh:mm:ss
   if (hh < 10) Serial.print("0");
   Serial.print(hh);
@@ -148,13 +157,7 @@ void displayTime() {
   Serial.print("\t");
 
   // timezone
-  if (DCF77signal[17] == 1) {
-    Serial.println(" CEST");
-  } 
-  else 
-    if (DCF77signal[18] == 1) {
-    Serial.println(" CET");
-  } 
-  else Serial.println("");
+  Serial.println(tzone[DCF77tz]);
 
 }
+
