@@ -16,6 +16,9 @@ Author : J.M. Lietaer, Belgium, Europe - jmlietaer (at) gmail (dot) com
  Amended: 05/02/2012 Dougie Lawson
  Removed the IF statement for the timezone.
  Timezone is now done by indexing an array.
+ 
+ Amended: 07/02/2012 Dougie Lawson
+ Added checksums and found the missing 58th bit.
  */
 
 
@@ -27,10 +30,14 @@ int DCF77value = 0;
 int DCF77data = 0; 
 int DCF77start = 0; 
 int DCF77tick = 0; 
-int DCF77signal[60]; 
+boolean DCF77signal[60]; 
 int DCF77count = 0; 
 int DCF77dw = 0;
 int DCF77tz = 0;
+
+int dateParity = 0;
+int hourParity = 0;
+int minParity = 0;
 
 char* DofW[] = { 
   "-Unk-", " Mon ", " Tue ", " Wed ", " Thu ", " Fri ", " Sat ", " Sun "};
@@ -47,7 +54,7 @@ int mm = 0;
 int ss = 0;
 
 void DCF() {
-  if (ss < 59) {
+  if (ss < 60) {
     ss++;
     displayTime();
   }
@@ -71,13 +78,45 @@ void loop() {
 
       if (DCF77start - DCF77tick > 1200) {
 
-        DCF77dw = DCF77signal[42] * 1 + DCF77signal[43] * 2 + DCF77signal[44] * 4;
-        day = (DCF77signal[36] * 1 + DCF77signal[37] * 2 + DCF77signal[38] * 4 + DCF77signal[39] * 8 + DCF77signal[40] * 10 + DCF77signal[41] * 20);
-        month = (DCF77signal[45] * 1 + DCF77signal[46] * 2 + DCF77signal[47] * 4 + DCF77signal[48] * 8 + DCF77signal[49] * 10);
-        yy2 = (DCF77signal[50] * 1 + DCF77signal[51] * 2 + DCF77signal[52] * 4 + DCF77signal[53] * 8 + DCF77signal[54] * 10 + DCF77signal[55] * 20 + DCF77signal[56] * 40 + DCF77signal[57] * 80);
-        hh = (DCF77signal[29] * 1 + DCF77signal[30] * 2 + DCF77signal[31] * 4 + DCF77signal[32] * 8 + DCF77signal[33] * 10 + DCF77signal[34] * 20);
-        mm = (DCF77signal[21] * 1 + DCF77signal[22] * 2 + DCF77signal[23] * 4 + DCF77signal[24] * 8 + DCF77signal[25] * 10 + DCF77signal[26] * 20 + DCF77signal[27] * 40);
-        DCF77tz = (DCF77signal[17] * 1 + DCF77signal[18] * 2);
+        // 58th bit was missing
+        if (DCF77start - DCF77tick < 1850) 
+          DCF77signal[58] = 1; 
+        else DCF77signal[58] = 0;
+
+
+        if (DCF77signal[20] == 1) {
+          DCF77dw = DCF77signal[42] * 1 + DCF77signal[43] * 2 + DCF77signal[44] * 4;
+          day = (DCF77signal[36] * 1 + DCF77signal[37] * 2 + DCF77signal[38] * 4 + DCF77signal[39] * 8 + DCF77signal[40] * 10 + DCF77signal[41] * 20);
+          month = (DCF77signal[45] * 1 + DCF77signal[46] * 2 + DCF77signal[47] * 4 + DCF77signal[48] * 8 + DCF77signal[49] * 10);
+          yy2 = (DCF77signal[50] * 1 + DCF77signal[51] * 2 + DCF77signal[52] * 4 + DCF77signal[53] * 8 + DCF77signal[54] * 10 + DCF77signal[55] * 20 + DCF77signal[56] * 40 + DCF77signal[57] * 80);
+          hh = (DCF77signal[29] * 1 + DCF77signal[30] * 2 + DCF77signal[31] * 4 + DCF77signal[32] * 8 + DCF77signal[33] * 10 + DCF77signal[34] * 20);
+          mm = (DCF77signal[21] * 1 + DCF77signal[22] * 2 + DCF77signal[23] * 4 + DCF77signal[24] * 8 + DCF77signal[25] * 10 + DCF77signal[26] * 20 + DCF77signal[27] * 40);
+          DCF77tz = (DCF77signal[17] * 1 + DCF77signal[18] * 2);
+
+          dateParity = 0;
+          for (int i = 36; i < 59; i++) {
+            dateParity ^= DCF77signal[i]; 
+          }
+
+          hourParity = 0;
+          for (int i = 29; i < 36; i++) {
+            hourParity ^= DCF77signal[i];
+          }
+
+          minParity = 0;
+          for (int i = 21; i < 29; i++) {
+            minParity ^= DCF77signal[i];
+          }
+
+
+        } 
+        else {
+          mm++;
+          if (mm > 59) {
+            hh++; 
+            mm =0;
+          }
+        }
 
         ss = 0;            // reset seconds
         DCF77count = 0;    // reset bit array counter
@@ -120,7 +159,6 @@ void loop() {
 
   }
   else {
-
     DCF77data = 0;
   }
 
@@ -128,7 +166,18 @@ void loop() {
 
 void displayTime() {
 
-  Serial.print("DCF77:\t");
+  if (!dateParity && !hourParity && !minParity) {
+    Serial.print("DCF77:\t");
+  } 
+  else {
+    Serial.print("DCF77: parity error: D:");
+    Serial.print(dateParity);
+    Serial.print(" H:");
+    Serial.print(hourParity);
+    Serial.print(" M:");
+    Serial.print(minParity);
+    Serial.print("\t");
+  }
 
   // Day of the week
   Serial.print(DofW[DCF77dw]);
@@ -157,7 +206,7 @@ void displayTime() {
   Serial.print("\t");
 
   // timezone
-  Serial.println(tzone[DCF77tz]);
-
+  Serial.print(tzone[DCF77tz]);
+  Serial.println("");
 }
 
