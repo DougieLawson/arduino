@@ -19,12 +19,18 @@ Author : J.M. Lietaer, Belgium, Europe - jmlietaer (at) gmail (dot) com
  
  Amended: 07/02/2012 Dougie Lawson
  Added checksums and found the missing 58th bit.
+
+ Amemded: 08/02/2012 Dougie Lawson
+ Changed the BCD to decimal conversion to use a function
+ Changed the seconds timer -it was missing :58 and :59
+ Added DEBUG directive to control code to show the ticks
  */
 
 
 #include <MsTimer2.h>
 #define TICKER 1000
 #define DCF77 A1
+#define DEBUG 0
 
 int DCF77value = 0; 
 int DCF77data = 0; 
@@ -32,8 +38,8 @@ int DCF77start = 0;
 int DCF77tick = 0; 
 boolean DCF77signal[60]; 
 int DCF77count = 0; 
-int DCF77dw = 0;
-int DCF77tz = 0;
+boolean DCF77timer = 0;
+
 
 int dateParity = 0;
 int hourParity = 0;
@@ -45,6 +51,9 @@ char* DofW[] = {
 char* tzone[] = {
   "     ", " CEST", " CET "};  
 
+int dw = 0;
+int tz = 0;
+
 int day = 0;
 int month = 0;
 int yy2 = 0;
@@ -55,13 +64,25 @@ int ss = 0;
 
 void DCF() {
   if (ss < 60) {
-    ss++;
     displayTime();
   }
 }
 
+int BCDtoDecimal(int startBit, int count) {
+  int b = 1;
+  int result = 0;
+  for (int i = 0; i < count; i++) {
+    int offset = i + startBit;  
+    result += DCF77signal[offset] * b; 
+    b *= 2;
+    if (b == 16) b = 10;
+  } 
+  return result;
+}
+
 void setup() {
   MsTimer2::set(TICKER,DCF);
+  DCF77timer = 0;
   Serial.begin(9600);
   pinMode(13,OUTPUT);
 }
@@ -75,23 +96,30 @@ void loop() {
     if (DCF77data == 0) {
 
       DCF77start = millis();
-
+#if DEBUG     
+      if (DCF77count < 10) Serial.print("0");
+      Serial.print(DCF77count);
+      Serial.print(":");
+      Serial.println(DCF77start - DCF77tick);
+#endif
       if (DCF77start - DCF77tick > 1200) {
 
         // 58th bit was missing
-        if (DCF77start - DCF77tick < 1850) 
+        if (DCF77start - DCF77tick < 1800) 
           DCF77signal[58] = 1; 
         else DCF77signal[58] = 0;
+        displayTime();
 
 
         if (DCF77signal[20] == 1) {
-          DCF77dw = DCF77signal[42] * 1 + DCF77signal[43] * 2 + DCF77signal[44] * 4;
-          day = (DCF77signal[36] * 1 + DCF77signal[37] * 2 + DCF77signal[38] * 4 + DCF77signal[39] * 8 + DCF77signal[40] * 10 + DCF77signal[41] * 20);
-          month = (DCF77signal[45] * 1 + DCF77signal[46] * 2 + DCF77signal[47] * 4 + DCF77signal[48] * 8 + DCF77signal[49] * 10);
-          yy2 = (DCF77signal[50] * 1 + DCF77signal[51] * 2 + DCF77signal[52] * 4 + DCF77signal[53] * 8 + DCF77signal[54] * 10 + DCF77signal[55] * 20 + DCF77signal[56] * 40 + DCF77signal[57] * 80);
-          hh = (DCF77signal[29] * 1 + DCF77signal[30] * 2 + DCF77signal[31] * 4 + DCF77signal[32] * 8 + DCF77signal[33] * 10 + DCF77signal[34] * 20);
-          mm = (DCF77signal[21] * 1 + DCF77signal[22] * 2 + DCF77signal[23] * 4 + DCF77signal[24] * 8 + DCF77signal[25] * 10 + DCF77signal[26] * 20 + DCF77signal[27] * 40);
-          DCF77tz = (DCF77signal[17] * 1 + DCF77signal[18] * 2);
+
+          tz = BCDtoDecimal(17, 2);
+          mm = BCDtoDecimal(21, 7);   
+          hh = BCDtoDecimal(29, 6);
+          day = BCDtoDecimal(36, 6);          
+          dw = BCDtoDecimal(42, 3);
+          month = BCDtoDecimal(45, 5);
+          yy2 = BCDtoDecimal(50, 8);
 
           dateParity = 0;
           for (int i = 36; i < 59; i++) {
@@ -120,7 +148,10 @@ void loop() {
 
         ss = 0;            // reset seconds
         DCF77count = 0;    // reset bit array counter
-        MsTimer2::start(); // start the seconds timer.
+        if (!DCF77timer) {
+          MsTimer2::start(); // start the seconds timer.
+          DCF77timer = 1;
+        }
 
         displayTime();
 
@@ -177,10 +208,12 @@ void displayTime() {
     Serial.print(" M:");
     Serial.print(minParity);
     Serial.print("\t");
+    MsTimer2::stop();
+    DCF77timer = 0;
   }
 
   // Day of the week
-  Serial.print(DofW[DCF77dw]);
+  Serial.print(DofW[dw]);
   Serial.print("\t");
 
   // dd/mm/20yy
@@ -206,7 +239,9 @@ void displayTime() {
   Serial.print("\t");
 
   // timezone
-  Serial.print(tzone[DCF77tz]);
+  Serial.print(tzone[tz]);
   Serial.println("");
+  ss++;
 }
+
 
