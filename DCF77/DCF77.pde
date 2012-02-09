@@ -19,11 +19,6 @@ Author : J.M. Lietaer, Belgium, Europe - jmlietaer (at) gmail (dot) com
  
  Amended: 07/02/2012 Dougie Lawson
  Added checksums and found the missing 58th bit.
-
- Amemded: 08/02/2012 Dougie Lawson
- Changed the BCD to decimal conversion to use a function
- Changed the seconds timer -it was missing :58 and :59
- Added DEBUG directive to control code to show the ticks
  */
 
 
@@ -135,7 +130,32 @@ void loop() {
           for (int i = 21; i < 29; i++) {
             minParity ^= DCF77signal[i];
           }
-
+#if DEBUG
+          Serial.print("DCF77signal: ");
+          for (int i = 15; i < 21; i++) {
+            Serial.print(DCF77signal[i],BIN);
+          }
+          Serial.print(" 15:20(F) ");
+          for (int i = 21; i < 29; i++) {
+            Serial.print(DCF77signal[i],BIN);
+          }
+          Serial.print(" 21:28(M) ");
+          for (int i = 29; i < 36; i++) {
+            Serial.print(DCF77signal[i],BIN);
+          }
+          Serial.print(" 29:35(H) ");
+          for (int i = 36; i < 59; i++) {
+            Serial.print(DCF77signal[i],BIN);
+          }
+          Serial.print(" 36:58(D)");
+          Serial.print(" D-P:");
+          Serial.print(dateParity);
+          Serial.print(" H-P:");
+          Serial.print(hourParity);
+          Serial.print(" M-P:");
+          Serial.print(minParity);
+          Serial.println("");
+#endif
 
         } 
         else {
@@ -201,7 +221,7 @@ void displayTime() {
     Serial.print("DCF77:\t");
   } 
   else {
-    Serial.print("DCF77: parity error: D:");
+    Serial.print("DCF77: p/e: D:");
     Serial.print(dateParity);
     Serial.print(" H:");
     Serial.print(hourParity);
