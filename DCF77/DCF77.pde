@@ -19,12 +19,16 @@ Author : J.M. Lietaer, Belgium, Europe - jmlietaer (at) gmail (dot) com
  
  Amended: 07/02/2012 Dougie Lawson
  Added checksums and found the missing 58th bit.
+ 
+ Amended: 12/02/2012 Dougie Lawson
+ Changed date format (yyyy-mm-dd)
+ Changed debugging code.
  */
 
 
 #include <MsTimer2.h>
 #define TICKER 1000
-#define DCF77 A1
+#define DCF77 A5
 #define DEBUG 0
 
 int DCF77value = 0; 
@@ -91,11 +95,13 @@ void loop() {
     if (DCF77data == 0) {
 
       DCF77start = millis();
-#if DEBUG     
+#if DEBUG > 1  
       if (DCF77count < 10) Serial.print("0");
       Serial.print(DCF77count);
       Serial.print(":");
-      Serial.println(DCF77start - DCF77tick);
+      Serial.print(DCF77start - DCF77tick);
+      if (DCF77count == 15 || DCF77count == 30 || DCF77count == 45) Serial.println();
+      else Serial.print("\t"); 
 #endif
       if (DCF77start - DCF77tick > 1200) {
 
@@ -104,7 +110,6 @@ void loop() {
           DCF77signal[58] = 1; 
         else DCF77signal[58] = 0;
         displayTime();
-
 
         if (DCF77signal[20] == 1) {
 
@@ -130,7 +135,7 @@ void loop() {
           for (int i = 21; i < 29; i++) {
             minParity ^= DCF77signal[i];
           }
-#if DEBUG
+#if DEBUG >= 1 
           Serial.print("DCF77signal: ");
           for (int i = 15; i < 21; i++) {
             Serial.print(DCF77signal[i],BIN);
@@ -139,22 +144,34 @@ void loop() {
           for (int i = 21; i < 29; i++) {
             Serial.print(DCF77signal[i],BIN);
           }
-          Serial.print(" 21:28(M) ");
+          Serial.print(" 21:28(Mi) ");
+          Serial.print(minParity);
+          Serial.print(" MP ");
           for (int i = 29; i < 36; i++) {
             Serial.print(DCF77signal[i],BIN);
           }
           Serial.print(" 29:35(H) ");
-          for (int i = 36; i < 59; i++) {
+          Serial.print(hourParity);
+          Serial.print(" HP ");
+          for (int i = 36; i < 42; i++) {
             Serial.print(DCF77signal[i],BIN);
           }
-          Serial.print(" 36:58(D)");
-          Serial.print(" D-P:");
+
+          Serial.print(" 36:41(D) ");
+          for (int i = 42; i < 45; i++) {
+            Serial.print(DCF77signal[i],BIN);
+          }
+          Serial.print(" 42:44(dw) ");
+          for (int i = 45; i < 50; i++) {
+            Serial.print(DCF77signal[i],BIN);
+          }
+          Serial.print(" 45:49(Mo) ");
+          for (int i = 50; i < 59; i++) {
+            Serial.print(DCF77signal[i],BIN);
+          }
+          Serial.print(" 50:58(Y) ");
           Serial.print(dateParity);
-          Serial.print(" H-P:");
-          Serial.print(hourParity);
-          Serial.print(" M-P:");
-          Serial.print(minParity);
-          Serial.println("");
+          Serial.println(" DP");
 #endif
 
         } 
@@ -236,15 +253,16 @@ void displayTime() {
   Serial.print(DofW[dw]);
   Serial.print("\t");
 
-  // dd/mm/20yy
-  if (day < 10) Serial.print("0");
-  Serial.print(day);
-  Serial.print("/");
-  if (month < 10) Serial.print("0");
-  Serial.print(month);
-  Serial.print("/20");             // Change me in 2100 :-)
+  // 20yy-mm-dd
+  Serial.print("20");             // Change me in 2100 :-)
   if (yy2 < 10) Serial.print("0"); // will never get run ...
   Serial.print(yy2);
+  Serial.print("-");
+  if (month < 10) Serial.print("0");
+  Serial.print(month);
+  Serial.print("-");
+  if (day < 10) Serial.print("0");
+  Serial.print(day);
   Serial.print("\t");
 
   // hh:mm:ss
@@ -260,8 +278,6 @@ void displayTime() {
 
   // timezone
   Serial.print(tzone[tz]);
-  Serial.println("");
+  Serial.println();
   ss++;
 }
-
-
