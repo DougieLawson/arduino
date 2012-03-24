@@ -3,11 +3,17 @@ This is a collection of a few of the Arduino projects I thought it was worth sha
 1. DCF77
    My version of J.M. Lietaer's code for decoding a pollin DCF77 receiver.
 
-2. bcd 
+2. Ethernet
+   A demo of sending a tweet and publishing on MQTT
+
+3. bcd 
    An experiment with binary coded decimal
 
-3. one to 19
+4. one to 19
    An example of driving a +/-1 and 7 segment display without a multiplexer chip.
+
+5. MQTT_colour_LED
+   Set the multi-colour LED from a web page. Transport is MQTT
 
 All code is GPL v3 unless otherwise stated.
 

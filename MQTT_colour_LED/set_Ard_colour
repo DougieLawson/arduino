@@ -1,0 +1,102 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+# ABSTRACT: Perl script for publishing to an MQTT topic
+# PODNAME: net-mqtt-pub
+
+
+use strict;
+use CGI;
+use Net::MQTT::Constants;
+use Net::MQTT::Message;
+use IO::Select;
+use IO::Socket::INET;
+use Time::HiRes;
+
+use CGI::Carp qw(fatalsToBrowser);
+
+my $query = CGI::new();
+
+my $colour = $query->param('colour');
+
+
+#my $help;
+#my $man;
+my $host = '127.0.0.1';
+my $port = 1883;
+my $keep_alive_timer = 120;
+my $retain;
+my $topic = "inTopic"; 
+
+my $socket =
+  IO::Socket::INET->new(PeerAddr => $host.':'.$port,
+                        Timeout => $keep_alive_timer,
+                       ) or die "Socket connect failed: $!\n";
+
+my $stdin_buf = '';
+my $sock_buf = '';
+my $mid = 1;
+my $next_ping;
+my $got_ping_response = 1;
+
+send_message($socket, message_type => MQTT_CONNECT,
+             keep_alive_timer => $keep_alive_timer);
+my $msg = read_message($socket, $sock_buf) or die "No ConnAck\n";
+
+$msg = $colour; 
+send_message($socket,
+             message_type => MQTT_PUBLISH,
+             retain => $retain,
+             topic => $topic,
+             message => $msg);
+
+print $query->header();
+print $query->start_html('Arduino MQTT');
+print $query->p;
+print "<table border=1>";
+print "<tr><td><b>";
+print "Arduino set to:";
+print "</b></td><td>";
+print $colour;
+print "</td></tr>";
+print "</table>";
+print $query->end_html;
+
+exit;
+
+sub send_message {
+  my $socket = shift;
+  my $msg = Net::MQTT::Message->new(@_);
+  $msg = $msg->bytes;
+  syswrite $socket, $msg, length $msg;
+  $next_ping = Time::HiRes::time + $keep_alive_timer;
+}
+
+sub read_message {
+  my $socket = shift;
+  my $select = IO::Select->new($socket);
+  $select->add(\*STDIN) if (@_ > 1);
+  my $timeout = $next_ping - Time::HiRes::time;
+  do {
+    my $mqtt = Net::MQTT::Message->new_from_bytes($_[0], 1);
+    return $mqtt if (defined $mqtt);
+    return $1 if (@_ > 1 && $_[1] =~ s/^(.*?)\n//);
+    my @handles = $select->can_read($timeout) or return;
+    $timeout = $next_ping - Time::HiRes::time;
+    foreach my $handle (@handles) {
+      if ($handle eq $socket) {
+        my $bytes = sysread $socket, $_[0], 2048, length $_[0];
+        unless ($bytes) {
+          die "Socket closed ", (defined $bytes ? 'gracefully' : 'error'), "\n";
+        }
+      } else {
+        my $bytes = sysread STDIN, $_[1], 2048, length $_[1];
+        exit unless ($bytes);
+      }
+    }
+  } while ($timeout > 0);
+  return;
+}
+
