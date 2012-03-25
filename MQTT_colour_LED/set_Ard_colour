@@ -24,11 +24,13 @@ my $colour = $query->param('colour');
 
 #my $help;
 #my $man;
-my $host = '127.0.0.1';
+#my $host = '127.0.0.1';
+my $host = 'test.mosquitto.org';
 my $port = 1883;
 my $keep_alive_timer = 120;
 my $retain;
-my $topic = "inTopic"; 
+#my $topic = "inTopic"; 
+my $topic = "arduino/colour"; 
 
 my $socket =
   IO::Socket::INET->new(PeerAddr => $host.':'.$port,

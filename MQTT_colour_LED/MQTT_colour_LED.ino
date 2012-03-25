@@ -24,7 +24,10 @@ byte mac[] = {
   0x98, 0xD6, 0xBB, 0xC6, 0x70, 0x3E}; 
 //byte server[] = { 10, 1, 1, 4 };
 
-char domain[] = "the-doctor.darkside-internet.bogus";
+//char domain[] = "the-doctor.darkside-internet.bogus";
+char domain[] = "test.mosquitto.org";
+char inTopic[] = "arduino/colour";
+char outTopic[] = "arduino/temp_light";
 
 byte off[] = "OFF";
 byte red[] = "RED";
@@ -80,11 +83,11 @@ const boolean* ColourS[] = {
  value (LOW = on, HIGH = off), colour[1] = green value, colour[2] =blue value)*/
 
 void setColour(int* led, boolean* colour) {
-#if DEBUG
+#if DEBUG > 0
   Serial.print("setColour");
 #endif 
   for(int i = 0; i < 3; i++){
-#if DEBUG
+#if DEBUG > 0
     Serial.print(" LED:");
     Serial.print(led[i]);
     Serial.print(" Colour:");
@@ -92,7 +95,7 @@ void setColour(int* led, boolean* colour) {
 #endif 
     digitalWrite(led[i], colour[i]); 
   } 
-#if DEBUG
+#if DEBUG > 0
   Serial.println();
 #endif
 }
@@ -108,7 +111,7 @@ void setNamedColour(int* led, const boolean* colour){
 
 void callback(char* topic, byte* payload, unsigned int length) { 
   // handle message arrived
-#if DEBUG 
+#if DEBUG > 0
   Serial.println("Callback"); 
   Serial.print("Topic:"); 
   Serial.println(topic); 
@@ -138,13 +141,13 @@ void setup() {
   } 
 
   analogReference(EXTERNAL); 
-#if DEBUG
+#if DEBUG > 0
   Serial.begin(9600);
 #endif 
   Ethernet.begin(mac); 
   if (client.connect("arduinoClient")) { 
-    client.publish("outTopic","hello world"); 
-    client.subscribe("inTopic"); 
+    client.publish(outTopic,"hello world"); 
+    client.subscribe(inTopic); 
   } 
 }
 
@@ -160,13 +163,11 @@ void loop()
   dtostrf(temp, 6, 2, tempstr);
   if (temp != oldTemp) {
     len = sprintf (MQTTbuffer, "Temp: %s , Light: %d ", tempstr, light);
-#if DEBUG
+#if DEBUG > 0
     Serial.println(MQTTbuffer);
 #endif
-    client.publish("outTopic",MQTTbuffer);
+    client.publish(outTopic,MQTTbuffer);
     oldTemp = temp;
   }
   delay(1000);
 }
-
-
